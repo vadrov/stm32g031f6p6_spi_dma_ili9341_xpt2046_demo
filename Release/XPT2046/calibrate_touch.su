@@ -1,0 +1,3 @@
+../XPT2046/calibrate_touch.c:77:13:draw_calibrate_point.constprop	40	static
+../XPT2046/calibrate_touch.c:54:6:XPT2046_ConvertPoint	48	static
+../XPT2046/calibrate_touch.c:85:6:XPT2046_CalibrateTouch	464	static,ignoring_inline_asm
