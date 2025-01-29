@@ -88,7 +88,7 @@ uint8_t XPT2046_GetTouch(XPT2046_Handler *t)
 
 /*
  * Обработчик прерывания EXTI по спадающему фронту сигнала на входе T_IRQ
- * (добавить в соответствующий обработчик EXTIx_IRQHandler - см. файл stm32f4xx_it.c)
+ * (добавить в соответствующий обработчик EXTIx_IRQHandler - см. файл stm32g0xx_it.c)
  */
 void XPT2046_EXTICallback(XPT2046_Handler *t)
 {
@@ -106,7 +106,7 @@ void XPT2046_EXTICallback(XPT2046_Handler *t)
 
 /*
  * Обработчик прерывания системного таймера
- * (добавить в обработчик SysTick_Handler - см. файл stm32f4xx_it.c)
+ * (добавить в обработчик SysTick_Handler - см. файл stm32g0xx_it.c)
  */
 void XPT2046_TIMCallback(XPT2046_Handler *t)
 {
