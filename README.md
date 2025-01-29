@@ -34,7 +34,7 @@ T_DIN, SDI            PA2
 T_CS                  PA7
 T_CLK, SCK            PA1
 SDO                   ---
-LED                   PB4
+LED                   PB4 (на плате PB6)
 D/C                   PA0
 RESET                 PA5
 CS                    PA3
