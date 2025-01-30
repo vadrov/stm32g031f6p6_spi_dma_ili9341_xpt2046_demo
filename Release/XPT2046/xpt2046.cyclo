@@ -1,5 +1,5 @@
-../XPT2046/xpt2046.c:200:12:get_adc_in	26
-../XPT2046/xpt2046.c:306:16:get_touch	8
+../XPT2046/xpt2046.c:200:12:get_adc_in	24
+../XPT2046/xpt2046.c:314:16:get_touch	8
 ../XPT2046/xpt2046.c:43:6:XPT2046_InitTouch	2
 ../XPT2046/xpt2046.c:70:9:XPT2046_GetTouch	3
 ../XPT2046/xpt2046.c:93:6:XPT2046_EXTICallback	4

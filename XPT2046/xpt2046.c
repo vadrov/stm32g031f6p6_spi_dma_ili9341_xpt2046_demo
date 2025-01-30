@@ -200,67 +200,74 @@ int XPT2046_GetAux(XPT2046_Handler *t)
 static int get_adc_in(XPT2046_Handler *t, uint8_t command, uint8_t repeat)
 {
 	SPI_TypeDef *spi = t->cnt_data.spi;
-	if (spi->CR1 & SPI_CR1_SPE ) { return -100000; }
-	LCD_CS_GPIO_Port->BSRR = LCD_CS_Pin;
+	if (spi->CR1 & SPI_CR1_SPE ) { return -100000; }   //spi занято, т.к. включено.
 	uint32_t param_spi[2];
-	connect_on(&t->cnt_data, param_spi);
-	uint32_t irq_exti_enable = NVIC_GetEnableIRQ(t->cnt_data.exti_irq);
-	if (irq_exti_enable) {
+	connect_on(&t->cnt_data, param_spi);	   							//Подключаем XPT2046 к МК по spi.
+	uint32_t irq_exti_enable = NVIC_GetEnableIRQ(t->cnt_data.exti_irq); //Если прерывание EXTI на входе T_IRQ
+	if (irq_exti_enable) {										   		//включено, то отключим его
 		NVIC_DisableIRQ(t->cnt_data.exti_irq);
 	}
-	int avr = 0, fl_no_use = 0, fl_first = 0;
-	uint16_t response = 0;
-	for (int i = 0; i < repeat; i++) {
-		while (!(spi->SR & SPI_SR_TXE)) { ; }
-		*((volatile uint8_t*)&spi->DR) = command;
-		while (!(spi->SR & SPI_SR_RXNE)) { ; }
-		if (!fl_no_use) {
-			(void)*((volatile uint8_t*)&spi->DR);
-			fl_no_use = 1;
+	uint8_t f_first = 1;								//Объявим и установим флаг "первого измерения"
+	uint8_t f_full_res = 0;								//Объявим и сбросим флаг "измеренного параметра"
+	uint16_t response = 0;								//Переменные хранения старшего и младшего разрядов ответов XPT2046 на команды
+	uint8_t cmd[2] = {command, XPT2046_NOP};			//Формирование командной строки
+	uint8_t n = 2;										//Количество команд в командной строке
+	uint8_t *com_ptr = cmd;								//Указатель на текущую команду в командной строке
+	int avr = 0;										//Переменная с накопительной суммой измеренного параметра
+	//Цикл по числу передаваемых команд XPT2046 (количество повторов * количество команд в строке)
+	for (int i = 0; i < repeat * n; i++) {
+		while (!(spi->SR & SPI_SR_TXE)) { ; }			//Ожидаем готовности к приему данных
+		*((volatile uint8_t*)&spi->DR) = *com_ptr;		//Передаем по spi команду для XPT2046
+		while (!(spi->SR & SPI_SR_RXNE)) { ; }			//Ожидаем приема ответа от XPT2046
+		com_ptr++;										//Перемещаем указатель по строке команд на следующую команду
+		if (com_ptr == cmd + n) {						//Если достигли конца таблицы, то перемещаем указатель на начало таблицы
+			com_ptr = cmd;
+		}
+		if (!i) {										//Самый первый ответ от XPT2046 мы получаем,
+			(void)*((volatile uint8_t*)&spi->DR);		//но игнорируем его, т.к. он не несет в себе полезной информации
 		}
 		else {
+			if (i & 1) {									 	  //Ответы на нечетные запросы к XPT2046
+				response = (*((volatile uint8_t*)&spi->DR)) << 8; //являются старшими разрядами измеряемого параметра
+			}
+			else {											 	//Ответы на четные запросы к XPT2046
+				response |= *((volatile uint8_t*)&spi->DR); 	//являются младшими разрядами измеряемого параметра.
+				f_full_res = 1;								 	//Полученный младший разряд означает, что измерение параметра завершено.
+			}												 	//Поэтому устанавливаем флаг "измеренного параметра"
+		}
+		if (i == repeat * n - 1) {							//Если мы передали последнюю команду в цикле по количеству передаваемых команд,
+			while (!(spi->SR & SPI_SR_TXE)) { ; }
+			*((volatile uint8_t*)&spi->DR) = XPT2046_NOP;	//то для получения младшего разряда измеряемого параметра нам необходимо отправить XPT2046
+			while (!(spi->SR & SPI_SR_RXNE)) { ; }			//"холостую" команду (бит 7 сброшен). Отправляем, ждем приема ответа и сохраняем его.
 			response |= *((volatile uint8_t*)&spi->DR);
-			if (fl_first) {
-				avr += (response >> 3) & 0xfff;
+			f_full_res = 1;												  //Установим флаг "измеренного параметра".
+			uint8_t cmd_ini[3] = {XPT2046_INI, XPT2046_NOP, XPT2046_NOP}; //"Инициализация" XPT2046 (разрешение PENIRQ).
+			for (int j = 0; j < 3; j++) {
+				while (!(spi->SR & SPI_SR_TXE)) { ; }
+				*((volatile uint8_t*)&spi->DR) = cmd_ini[j];
+				while (!(spi->SR & SPI_SR_RXNE)) { ; }
+				(void)*((volatile uint8_t*)&spi->DR);
+			}
+			connect_off(&t->cnt_data, param_spi);		//Отключаем XPT2046 от МК
+		}
+		//Мы не сохраняем первое измеренное значение и не учитываем его из-за зашумленности
+		if (f_full_res) {								//Если установлен флаг "измеренного параметра",
+			if (!f_first && i >= 2) {					//то в случае сброшенного флага "первого измерения
+				avr += (response >> 3) & 0xfff;			//"Копим" измеренный параметр
 			}
 			else {
-				fl_first = 1;
+				f_first = 0; 							//Сбрасываем флаг "первого измерения"
 			}
-		}
-		while (!(spi->SR & SPI_SR_TXE)) { ; }
-		*((volatile uint8_t*)&spi->DR) = XPT2046_NOP;
-		while (!(spi->SR & SPI_SR_RXNE)) { ; }
-		response = (*((volatile uint8_t*)&spi->DR)) << 8;
-		if (i == repeat - 1) {
-			while (!(spi->SR & SPI_SR_TXE)) { ; }
-			*((volatile uint8_t*)&spi->DR) = XPT2046_NOP;
-			while (!(spi->SR & SPI_SR_RXNE)) { ; }
-			response |= *((volatile uint8_t*)&spi->DR);
-			if (fl_first) {
-				avr += (response >> 3) & 0xfff;
-			}
+			f_full_res = 0;								//Сбрасываем флаг "измеренного параметра"
 		}
 	}
-	while (!(spi->SR & SPI_SR_TXE)) { ; }
-	*((volatile uint8_t*)&spi->DR) = XPT2046_INI;
-	while (!(spi->SR & SPI_SR_RXNE)) { ; }
-	(void)*((volatile uint8_t*)&spi->DR);
-	while (!(spi->SR & SPI_SR_TXE)) { ; }
-	*((volatile uint8_t*)&spi->DR) = XPT2046_NOP;
-	while (!(spi->SR & SPI_SR_RXNE)) { ; }
-	(void)*((volatile uint8_t*)&spi->DR);
-	while (!(spi->SR & SPI_SR_TXE)) { ; }
-	*((volatile uint8_t*)&spi->DR) = XPT2046_NOP;
-	while (!(spi->SR & SPI_SR_RXNE)) { ; }
-	(void)*((volatile uint8_t*)&spi->DR);
-	if (repeat >= 2) {
-		avr /= (repeat - 1);
+	if (repeat > 1) {									//Если количество повторов измерений больше 1,
+		avr /= repeat - 1;								//то вычисляем среднее измеренного параметра
 	}
-	connect_off(&t->cnt_data, param_spi);
-	if (irq_exti_enable) {
-		NVIC_EnableIRQ(t->cnt_data.exti_irq);
+	if (irq_exti_enable) {							//Если прерывание EXTI на входе T_IRQ было включено:
+		NVIC_EnableIRQ(t->cnt_data.exti_irq);		//- разрешение прерывания EXTI на входе T_IRQ.
 	}
-	return avr;
+	return avr; //Выходим с успешным завершением процедуры
 }
 
 /* Подключение к контроллеру XPT2046 с сохранением параметров spi */
@@ -285,6 +292,7 @@ static void connect_on(XPT2046_ConnectionData *cnt_data, uint32_t *param)
 	spi->CR1 |= SPI_CR1_SPE; //spi включаем
 	cnt_data->cs_port->BSRR = (uint32_t)cnt_data->cs_pin << 16U; //Подключаем XPT2046 к spi (низкий уровень на T_CS)
 }
+
 
 /*
  * Отключение от контроллера XPT2046 с восстановлением параметров spi

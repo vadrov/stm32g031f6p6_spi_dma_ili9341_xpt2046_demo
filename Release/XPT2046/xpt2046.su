@@ -1,5 +1,5 @@
-../XPT2046/xpt2046.c:200:12:get_adc_in	64	static,ignoring_inline_asm
-../XPT2046/xpt2046.c:306:16:get_touch	16	static
+../XPT2046/xpt2046.c:200:12:get_adc_in	80	static,ignoring_inline_asm
+../XPT2046/xpt2046.c:314:16:get_touch	16	static
 ../XPT2046/xpt2046.c:43:6:XPT2046_InitTouch	16	static
 ../XPT2046/xpt2046.c:70:9:XPT2046_GetTouch	16	static
 ../XPT2046/xpt2046.c:93:6:XPT2046_EXTICallback	0	static,ignoring_inline_asm
