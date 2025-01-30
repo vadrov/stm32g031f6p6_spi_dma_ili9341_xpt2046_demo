@@ -13,7 +13,7 @@ Copyright (C) 2019, VadRov, all right reserved / www.youtube.com/@VadRov / www.d
 
 ![Image](https://github.com/user-attachments/assets/02b638e7-df36-41ff-a0b8-3ab262609c03)
 
-**The project is built for the stm32G031F6P6 microcontroller.**
+**The project is built for the stm32G031F6P6 microcontroller ([STM32G0xx Core Board](https://github.com/WeActStudio/WeActStudio.STM32G0xxC0xxCoreBoard)).**
 **Connection table of the debug board based on the stm32g031f6p6 display module with the ili9341 touchscreen:**
 ```
 ILI9341 module      MCU stm32g031f6p6
