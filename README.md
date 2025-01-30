@@ -13,86 +13,75 @@ Copyright (C) 2019, VadRov, all right reserved / www.youtube.com/@VadRov / www.d
 
 ![Image](https://github.com/user-attachments/assets/02b638e7-df36-41ff-a0b8-3ab262609c03)
 
-Драйвер контроллера XPT2046 (HR2046 и других совместимых). Поддерживает весь функционал контроллера: работа с тачскрином, измерение температуры внутренним датчиком, измерение напряжений на входах VBAT и AUX.
-
-**Проект собран для МК stm32G031F6P6.**
-
-**Функции и возможности:**
-- Опрос тачскрина (в прерывании и вне прерывания) с получением информации о координатах и длительности касания;
-- Определение статуса текущего касания тачскрина: нет касания, клик, удержание;
-- Измерение температуры встроенным датчиком;
-- Измерение напряжения батареи на входе VBAT контроллера (7 вывод м/с в корпусе TSSOP-16);
-- Измерение напряжения на входе AUX контроллера (8 вывод м/с в корпусе TSSOP-16).
-- Допускает работу на одном spi нескольких устройств.
-
-**Таблица подключений отладочной платы на базе м/к stm32g031f6p6 дисплейного модуля с тачскрином ili9341:**
+**The project is built for the stm32G031F6P6 microcontroller.**
+**Connection table of the debug board based on the stm32g031f6p6 display module with the ili9341 touchscreen:**
 ```
-модуль ILI9341      м/к stm32g031f6p6
+ILI9341 module      MCU stm32g031f6p6
 T_IRQ                 PB7
 T_OUT                 PA6
 T_DIN, SDI            PA2
 T_CS                  PA7
 T_CLK, SCK            PA1
 SDO                   ---
-LED                   PB4 (на плате PB6)
+LED                   PB4 (in board PB6)
 D/C                   PA0
 RESET                 PA5
 CS                    PA3
 GND                   GND
 VCC                   3V3
 ```
-## Использование:
-- В среде STM32CubeIDE создайте новый проект для своего МК stm32G0x. Выполните общую настройку проекта (тактирование, отладка и т.п.). Определите spi для работы с контроллером. Если к этому spi будет подключено еще одно устройство, например, дисплей, то настройте spi (задайте параметры spi) под используемый дисплей. При этом помните, что XPT2046 требует 4-проводного spi (полнодуплексный режим). Определите выводы МК T_CS (выход, GPIO mode -> Output Push Pull) и T_IRQ (вход с внешним прерыванием по спадающему фронту, GPIO mode -> External Interrupt Mode with Falling edge trigger detection). Подтяните вывод T_CS к питанию внутренней подтяжкой (GPIO Pull-up/Pull-down -> Pull-up). Если к одному spi будет подключено несколько устройств, то CS выводы других устройств также притяните к питанию. Кроме того, задайте высокий уровень на всех выходах CS (GPIO output level -> High). Подтяните вывод T_IRQ к питанию внутренней подтяжкой (GPIO Pull-up/Pull-down -> Pull-up), если на вашей плате не распаян резистор, подтягивающий к питанию вывод PENIRQ контроллера XPT2046. Скорость выводов определите в High, скорость линий spi в Very High.
-- В файле stm32g0xx_it.c
-1. Подключить заголовочный файл драйвера
+## Usage:
+- In the STM32CubeIDE environment, create a new project for your stm32G0x MCU. Perform general project setup (clocking, debugging, etc.). Define spi for working with the controller. If another device, such as a display, is connected to this spi, then configure spi (set spi parameters) for the display used. Remember that XPT2046 requires a 4-wire spi (full-duplex mode). Define the T_CS (output, GPIO mode -> Output Push Pull) and T_IRQ (input with external interrupt on falling edge, GPIO mode -> External Interrupt Mode with Falling edge trigger detection) MCU pins. Pull the T_CS pin to the power supply using the internal pull-up (GPIO Pull-up/Pull-down -> Pull-up). If several devices are connected to one spi, then pull the CS pins of other devices to the power supply as well. In addition, set the high level on all CS outputs (GPIO output level -> High). Pull the T_IRQ pin to the power supply with the internal pull-up (GPIO Pull-up/Pull-down -> Pull-up), if your board does not have a resistor that pulls the PENIRQ pin of the XPT2046 controller to the power supply. Set the pin speed to High, the spi line speed to Very High.
+- In file stm32g0xx_it.c
+1. Include driver header file
 ```c
 #include "xpt2046.h"
 ```
-2. В обработчик SysTick_Handler добавить вызов:
+2. Add a call to the SysTick_Handler handler:
 ```c
  XPT2046_TIMCallback(touch);
 ```
-3. В обработчик внешнего прерывания EXTIxx_IRQHandler (xx определяет линию прерывания) добавить вызов:
+3. Add the following call to the external interrupt handler EXTIxx_IRQHandler (xx defines the interrupt line):
 ```c
  XPT2046_EXTICallback(touch);
  ```
-- Определить параметры подключения МК к контроллеру XPT2046:
+- Define the parameters for connecting the MK to the XPT2046 controller:
 ```c
- XPT2046_ConnectionData cnt_touch = {	.spi 	  = SPI1, //Используемый spi
-					.speed 	  = 4, //Скорость spi 0...7 (0 - clk/2, 1 - clk/4, ..., 7 - clk/256)
-					.cs_port  = T_CS_GPIO_Port, //Порт для управления T_CS
-					.cs_pin	  = T_CS_Pin, //Вывод порта для управления T_CS
-					.irq_port = T_IRQ_GPIO_Port, //Порт для управления T_IRQ
-					.irq_pin  = T_IRQ_Pin, //Вывод порта для управления T_IRQ
-					.exti_irq = T_IRQ_EXTI_IRQn //Канал внешнего прерывания
+ XPT2046_ConnectionData cnt_touch = {	.spi 	  = SPI1, //Used spi
+					.speed 	  = 4, //Speed ​​spi 0...7 (0 - clk/2, 1 - clk/4, ..., 7 - clk/256)
+					.cs_port  = T_CS_GPIO_Port, //T_CS control port
+					.cs_pin	  = T_CS_Pin, //T_CS control pin
+					.irq_port = T_IRQ_GPIO_Port, //T_IRQ control port
+					.irq_pin  = T_IRQ_Pin, //T_IRQ control pin
+					.exti_irq = T_IRQ_EXTI_IRQn //External interrupt channel for T_IRQ
 };
 ```
-- Объявить переменную обработчика XPT2046:
+- Declare the XPT2046 handler variable:
 ```c
  XPT2046_Handler touch1;
 ```
-- Инициализировать обработчик XPT2046:
+- Initialize XPT2046 handler:
 ```c
  XPT2046_InitTouch(&touch1, 20, &cnt_touch);
 ```
-Параметр 20 определяет период счета внутреннего таймера обработчика. Таймер обработчика привязан к системному таймеру, который должен быть настроен на генерацию прерываний 1000 раз в секунду. Таким образом, опрос тачскрина в прерывании будет происходить 1000/20 = 50 раз в секунду.
-- Произвести калибровку тачскрина:
+Parameter 20 defines the counting period of the internal handler timer. The handler timer is tied to the system timer, which should be set to generate interrupts 1000 times per second. Thus, the touchscreen will be polled in the interrupt 1000/20 = 50 times per second.
+- Calibrate the touchscreen:
 ```c
-  XPT2046_CalibrateTouch(&touch1, lcd); //Запускаем процедуру калибровки
+  XPT2046_CalibrateTouch(&touch1, lcd); //Start the calibration procedure
 ```
-Опрос тачскрина может осуществляться в прерывании драйвера (touch1.fl_interrupt = 1) либо в программе пользователя (touch1.fl_interrupt = 0). Если опрос осуществляется вне прерывания драйвера, то необходимо вызывать в программе пользователя перед получением статуса и координат касания:
+The touchscreen can be polled in the driver interrupt (touch1.fl_interrupt = 1) or in the user program (touch1.fl_interrupt = 0). If the poll is performed outside the driver interrupt, it is necessary to call in the user program before receiving the status and touch coordinates:
 ```c
-uint8_t res = XPT2046_GetTouch(&touch1); //res = 0 - опрос успешный, res = 1 - нет касания, res = 2 - spi занято
+uint8_t res = XPT2046_GetTouch(&touch1); //res = 0 - poll successful, res = 1 - no touch, res = 2 - spi busy
 ```
-- Для получения координат касания:
+- To get touch coordinates:
 ```c
-tPoint point_d; //координаты касания на дисплее: x соответствует point_d.x, а у - point_d.y
-XPT2046_ConvertPoint(&point_d, &touch1.point, &touch1.coef); //Преобразуем координаты тачскрина в дисплейные
+tPoint point_d; //touch coordinates on the display: x corresponds to point_d.x, and y corresponds to point_d.y
+XPT2046_ConvertPoint(&point_d, &touch1.point, &touch1.coef); //Convert touchscreen coordinates to display coordinates
 ```
-Текущий статус касания определяет параметр touch1.status. Если touch1.status = XPT2046_STATUS_NOCLICK, то нет клика; touch1.status = XPT2046_STATUS_CLICK - есть клик,  touch1.status = XPT2046_STATUS_HOLD - есть удержание. Время перехода касания из статуса "клик" в статус "удержание" определяет параметр XPT2046_TOUCH_HOLD_TIME (файл xpt2046.h).
+The current touch status is determined by the touch1.status parameter. If touch1.status = XPT2046_STATUS_NOCLICK, then there is no click; touch1.status = XPT2046_STATUS_CLICK - there is a click, touch1.status = XPT2046_STATUS_HOLD - there is a hold. The time it takes for the touch to transition from the "click" status to the "hold" status is determined by the XPT2046_TOUCH_HOLD_TIME parameter (file xpt2046.h).
 
-Автор: **VadRov**
+Author: **VadRov**
 
-Контакты: [Youtube](https://www.youtube.com/@VadRov) [Дзен](https://dzen.ru/vadrov) [VK](https://vk.com/vadrov) [Telegram](https://t.me/vadrov_channel)
+Contacts: [Youtube](https://www.youtube.com/@VadRov) [Дзен](https://dzen.ru/vadrov) [VK](https://vk.com/vadrov) [Telegram](https://t.me/vadrov_channel)
 
-Поддержать автора: [donate.yoomoney](https://yoomoney.ru/to/4100117522443917)
+Donate [donate.yoomoney](https://yoomoney.ru/to/4100117522443917)
