@@ -11,6 +11,29 @@ Copyright (C) 2019, VadRov, all right reserved / www.youtube.com/@VadRov / www.d
 - Measurement of the voltage at the AUX input of the controller (8 pin m/s in the TSSOP-16 housing).
 - Allows operation on one spi of several devices.
 
+**IMPORTANT NOTE**
+- This driver can use either internal or external reference voltage sources for ADC measurements.
+- If your board has power supplied to pin 9 of the Vref chip (usually shorted to VCC - pin 1 of the microcontroller), the ADC will always use the voltage supplied to the external Vref source as the reference voltage for measurements. Therefore, the datasheet states that if you plan to use the internal reference voltage source, the Vref pin should be left unconnected. This means that the Vref pin is a bidirectional pin, functioning as an input if an external reference voltage source is connected, and as an output of the internal reference voltage source if enabled by the corresponding bit in the control byte. These subtleties are not important when using a touchscreen, but are critical if the XPT2046 is used to measure temperature (using the sensor inside the chip itself) and voltages (on the Vbat and AUX pins). Incorrectly setting the control byte and specifying the incorrect reference voltage value in such cases will significantly distort the measurements.
+- The xpt2046.h file contains a corresponding macro definition that affects the format of the control bytes:
+```c
+#define XPT2046_INTERNAL_VREF //Use the internal reference voltage source.
+//If an external reference voltage source is used,
+//then comment out this line. This is for the case when pin 9
+//Vref is not powered, i.e., the pin is idle.
+```
+- The reference voltage value for the internal and external sources can be specified in the same file using the corresponding macro definitions:
+```c
+#ifdef XPT2046_INTERNAL_VREF
+#define XPT2046_VREF 2500 //Voltage of the internal reference voltage source.
+//It is defined in the XPT2046 controller datasheet (2500 mV +/- 50 mV).
+
+#define XPT2046_VREF 3490 //The voltage of the external reference voltage source.
+//Measured at pin 9 of the XPT2046 chip in the TSSOP-16 package.
+//This voltage is for my board. Yours may be different.
+//This applies if pin 9 is powered (connected to the VCC pin).
+#endif
+```
+
 ![Image](https://github.com/user-attachments/assets/02b638e7-df36-41ff-a0b8-3ab262609c03)
 
 **The project is built for the stm32G031F6P6 microcontroller ([STM32G0xx Core Board](https://github.com/WeActStudio/WeActStudio.STM32G0xxC0xxCoreBoard)).**
